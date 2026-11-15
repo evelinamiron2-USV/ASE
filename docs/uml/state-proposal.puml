@@ -1,0 +1,31 @@
+@startuml
+title MeowMed (Version P) - Schedule Proposal State Machine
+
+[*] --> Drafting : propose_schedule(drugs)
+
+Drafting --> Refused : unknown drug [FR-04, GR-01]
+Drafting --> Blocked : HIGH interaction detected [FR-03]
+Drafting --> PendingApproval : safety checks passed
+
+PendingApproval --> Approved : patient clicks Approve [GR-04]
+PendingApproval --> Rejected : patient rejects or timeout
+
+Approved --> Saved : save_schedule() via patient-db MCP [FR-02]
+
+Refused --> [*]
+Blocked --> [*]
+Rejected --> [*]
+Saved --> [*]
+
+note right of PendingApproval
+  Approval gate (GR-04):
+  The AI may propose a schedule,
+  only the patient can approve it.
+end note
+
+note right of Blocked
+  Safety rule (FR-03):
+  High-risk drug combinations
+  can never be approved or saved.
+end note
+@enduml
