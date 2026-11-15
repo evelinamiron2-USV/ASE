@@ -1,0 +1,47 @@
+@startuml
+title MeowMed (Version P) - Component Diagram
+skinparam componentStyle uml2
+
+actor Patient
+component "Web UI\n(Responsive Client)" as UI
+
+package "Agents (A2A Network)" {
+  component "Orchestrator Agent" as ORCH
+  component "Scheduling Agent" as SCHED
+  component "Interaction Checker Agent" as INTER
+  component "Leaflet Q&A Agent" as QA
+}
+
+component "Guardrail Layer\n(Validation, Approval Gate, Filters)" as GUARD
+component "LLM Adapter\n(Retry, Circuit Breaker, Fallback)" as LLMA
+
+package "MCP Servers" {
+  component "patient-db MCP Server" as DBMCP
+  component "leaflet-RAG MCP Server" as RAGMCP
+}
+
+database "Local PostgreSQL\n(Medications, Schedules, Logs)" as PG
+database "Leaflet Store\n(JSON / Vector Index)" as VS
+
+cloud "Gemini API\n(Primary)" as GEM
+cloud "Mistral API\n(Fallback)" as MIS
+
+Patient --> UI
+UI --> ORCH : HTTP / JSON
+ORCH --> SCHED : A2A task
+ORCH --> QA : A2A task
+SCHED --> INTER : A2A task (safety check)
+
+SCHED --> DBMCP : MCP tools
+SCHED --> GUARD
+INTER --> RAGMCP : MCP tools
+QA --> RAGMCP : MCP tools
+QA --> GUARD
+
+DBMCP --> PG : SQL
+RAGMCP --> VS : Retrieval (RAG)
+
+GUARD --> LLMA
+LLMA --> GEM : HTTPS (primary)
+LLMA ..> MIS : HTTPS (fallback)
+@enduml
