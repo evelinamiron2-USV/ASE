@@ -1,0 +1,49 @@
+@startuml
+left to right direction
+title MeowMed (Version P - Patient) - Use Case Diagram
+
+actor Patient
+actor "LLM Provider\n(Gemini / Mistral)" as LLM <<system>>
+
+rectangle "MeowMed - Patient Medication Assistant" {
+  ' FR-01, FR-11, FR-12, FR-17
+  usecase "Manage active medications\n(Add, Edit, Remove)" as UC1
+  ' FR-02, FR-14, FR-16
+  usecase "Generate & view\ndaily/weekly schedule" as UC2
+  ' FR-03
+  usecase "Check drug-drug interactions" as UC3
+  ' Guardrail GR-04 (Human-in-the-loop)
+  usecase "Approve schedule proposal" as UC4
+  ' FR-15
+  usecase "Mark dose as taken" as UC5
+  ' FR-06
+  usecase "Configure dose reminders" as UC6
+  ' FR-07, FR-08, FR-13
+  usecase "Ask about drug & read\nsimplified leaflet summary" as UC7
+  ' Section 4.1 (RAG citation)
+  usecase "View leaflet source citation" as UC8
+  ' FR-09
+  usecase "Export active medication list" as UC9
+  ' FR-10
+  usecase "View local activity log" as UC10
+}
+
+Patient --> UC1
+Patient --> UC2
+Patient --> UC4
+Patient --> UC5
+Patient --> UC6
+Patient --> UC7
+Patient --> UC9
+Patient --> UC10
+
+' Relatii obligatorii (include) si optionale (extend)
+UC1 ..> UC3 : <<include>>
+UC2 ..> UC3 : <<include>>
+UC2 ..> UC4 : <<include>>
+UC8 ..> UC7 : <<extend>>
+
+' Legaturi catre sistemul extern AI
+UC2 --> LLM
+UC7 --> LLM
+@enduml
