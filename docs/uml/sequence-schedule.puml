@@ -1,0 +1,54 @@
+@startuml
+title MeowMed (Version P) - Sequence Diagram: Generate & Approve Schedule
+autonumber
+
+actor Patient
+participant "Web UI" as UI
+participant "Orchestrator\nAgent" as ORCH
+participant "Scheduling\nAgent" as SCHED
+participant "Interaction\nChecker Agent" as INTER
+participant "leaflet-RAG\nMCP Server" as RAGMCP
+participant "LLM Adapter" as LLMA
+participant "Gemini API" as GEM
+participant "patient-db\nMCP Server" as DBMCP
+
+Patient -> UI : Enter active medications & request schedule
+UI -> ORCH : POST /schedule/propose (drugs)
+ORCH -> SCHED : A2A task: create_schedule(drugs)
+SCHED -> INTER : A2A task: check_interactions(drugs)
+INTER -> RAGMCP : MCP tool: check_interaction(drug_a, drug_b)
+RAGMCP --> INTER : interaction result ("none" or "HIGH")
+INTER --> SCHED : safety verdict
+
+alt HIGH interaction detected (FR-03)
+  SCHED --> ORCH : BLOCKED + warning + leaflet citation
+  ORCH --> UI : 200 OK (status: BLOCKED)
+  UI --> Patient : Display blocking warning & leaflet source
+else No blocking interaction
+  SCHED -> LLMA : draft_schedule(prompt)
+  loop at most 3 attempts (backoff 1s, 2s + jitter) [GR-02]
+    LLMA -> GEM : generateContent
+    GEM --> LLMA : 200 OK / HTTP 429 / 5xx
+  end
+
+  alt Still failing after 3 attempts (NFR-02 / GR-03)
+    LLMA --> SCHED : LLMUnavailable
+    SCHED --> ORCH : DEGRADED (safe fallback message)
+    ORCH --> UI : 200 OK (status: DEGRADED)
+    UI --> Patient : Show safe fallback & cached schedule
+  else LLM success
+    LLMA --> SCHED : schedule draft
+    SCHED --> ORCH : proposal (PENDING_APPROVAL) [GR-04]
+    ORCH --> UI : 200 OK (proposal_id, draft, citations)
+    UI --> Patient : Show proposed schedule & leaflet sources
+    Patient -> UI : Click "Approve"
+    UI -> ORCH : POST /schedule/approve (proposal_id)
+    ORCH -> SCHED : A2A task: approve_and_save(proposal_id)
+    SCHED -> DBMCP : MCP tool: save_schedule(proposal_id)
+    DBMCP --> SCHED : SAVED
+    SCHED --> ORCH : status: SAVED
+    ORCH --> UI : 200 OK (SAVED)
+    UI --> Patient : Confirm schedule saved
+  end
+end
+@enduml
