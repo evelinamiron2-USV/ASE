@@ -1,0 +1,44 @@
+@startuml
+title MeowMed (Version P) - Deployment Diagram (Lab Setup)
+
+node "Student Laptop (Windows / macOS / Linux)" as LAP {
+  node "Web Browser" as BRW {
+    artifact "Responsive Web UI" as WUI
+  }
+  
+  node "Python 3.10+ Virtual Environment (.venv)" as PY {
+    artifact "Backend API & A2A Agents\n(Orchestrator, Scheduling, Interaction, Q&A)" as AGT
+    artifact "patient-db MCP Server\n(stdio)" as M1
+    artifact "leaflet-RAG MCP Server\n(stdio)" as M2
+    database "Leaflet Store\n(JSON / Vector Index)" as IDX
+  }
+  
+  node "Local Database Server" as DBSRV {
+    database "PostgreSQL Database\n(Medications, Schedules, Logs)" as PG
+  }
+  
+  file ".env\n(GEMINI_API_KEY, MISTRAL_API_KEY, DB_URL)" as ENV
+}
+
+node "Google AI Studio (Cloud)" as G {
+  artifact "Gemini API" as GEM
+}
+
+node "Mistral La Plateforme (Cloud)" as M {
+  artifact "Mistral API" as MIS
+}
+
+node "GitHub / GitLab (Cloud)" as GH {
+  artifact "Source Repository\n(src/, docs/uml/, docs/adr/)" as REPO
+}
+
+WUI --> AGT : HTTP / JSON (localhost)
+AGT ..> ENV : reads secrets
+AGT --> M1 : stdio (JSON-RPC)
+AGT --> M2 : stdio (JSON-RPC)
+M1 --> PG : SQL (localhost)
+M2 --> IDX : local file read
+AGT --> GEM : HTTPS (primary)
+AGT ..> MIS : HTTPS (fallback)
+LAP ..> GH : git push
+@enduml
